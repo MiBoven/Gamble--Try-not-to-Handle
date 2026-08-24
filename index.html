@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#0f1410">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="style.css">
+<title>Gamble - What you not can Handle</title>
+</head>
+<body>
+
+<header>
+  <h1>Gamble <span class="sub-accent">What you not can Handle</span></h1>
+  <button class="icon" id="themeToggle" title="Toggle theme">◐</button>
+</header>
+<p class="sub">Roll physically simulated 3D dice — entirely in your browser. Nothing is uploaded.</p>
+
+<div class="card">
+  <div class="row-label">Dice type</div>
+  <div class="segment" id="dieTypeToggle">
+    <button type="button" class="seg-btn active" data-type="d6">D6</button>
+  </div>
+  <p class="hint">More dice types (D4, D10, D12, D20, D50, D100, coin) are coming later.</p>
+</div>
+
+<div class="card">
+  <div class="row-label">Pip mode</div>
+  <div class="segment" id="pipModeToggle">
+    <button type="button" class="seg-btn active" data-mode="6">1–6</button>
+    <button type="button" class="seg-btn" data-mode="3">1–3 (doubled)</button>
+  </div>
+  <p class="hint" id="pipModeHint">Standard die: each number 1–6 appears once.</p>
+</div>
+
+<div class="card">
+  <div class="row-label">Number of dice</div>
+  <div class="stepper" id="diceCountStepper">
+    <button type="button" class="count-btn" data-count="1">1</button>
+    <button type="button" class="count-btn active" data-count="2">2</button>
+    <button type="button" class="count-btn" data-count="3">3</button>
+    <button type="button" class="count-btn" data-count="4">4</button>
+    <button type="button" class="count-btn" data-count="5">5</button>
+  </div>
+</div>
+
+<div class="tray-wrap">
+  <canvas id="scene"></canvas>
+  <p class="loading" id="loadingMsg">Loading dice model…</p>
+</div>
+
+<button id="throwBtn" disabled>Throw</button>
+
+<div class="card result-card" id="resultCard" style="display:none;">
+  <div class="row-label">Result</div>
+  <div class="dice-values" id="diceValues"></div>
+  <div class="sum" id="diceSum"></div>
+</div>
+
+<div class="card placeholder-card">
+  <div class="placeholder-row">
+    <span>Players</span>
+    <span class="badge">coming soon</span>
+  </div>
+  <div class="placeholder-row">
+    <span>Statistics</span>
+    <span class="badge">coming soon</span>
+  </div>
+</div>
+
+<footer>Gamble - What you not can Handle · v0.1.0</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
