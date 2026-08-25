@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<meta name="theme-color" content="#0f1410">
+<meta name="theme-color" content="#131313">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
@@ -17,7 +17,19 @@
   <h1>Gamble <span class="sub-accent">Try not to Handle</span></h1>
   <button class="icon" id="themeToggle" title="Toggle theme">◐</button>
 </header>
-<p class="sub">Roll physically simulated 3D dice — entirely in your browser. Nothing is uploaded.</p>
+
+<div class="tray-wrap">
+  <canvas id="scene"></canvas>
+  <p class="loading" id="loadingMsg">Loading dice model…</p>
+</div>
+
+<button id="throwBtn" disabled>Throw</button>
+
+<div class="card result-card" id="resultCard" style="display:none;">
+  <div class="row-label">Result</div>
+  <div class="dice-values" id="diceValues"></div>
+  <div class="sum" id="diceSum"></div>
+</div>
 
 <div class="card">
   <div class="row-label">Dice type</div>
@@ -39,25 +51,24 @@
 <div class="card">
   <div class="row-label">Number of dice</div>
   <div class="stepper" id="diceCountStepper">
-    <button type="button" class="count-btn" data-count="1">1</button>
-    <button type="button" class="count-btn active" data-count="2">2</button>
+    <button type="button" class="count-btn active" data-count="1">1</button>
+    <button type="button" class="count-btn" data-count="2">2</button>
     <button type="button" class="count-btn" data-count="3">3</button>
     <button type="button" class="count-btn" data-count="4">4</button>
     <button type="button" class="count-btn" data-count="5">5</button>
   </div>
 </div>
 
-<div class="tray-wrap">
-  <canvas id="scene"></canvas>
-  <p class="loading" id="loadingMsg">Loading dice model…</p>
-</div>
-
-<button id="throwBtn" disabled>Throw</button>
-
-<div class="card result-card" id="resultCard" style="display:none;">
-  <div class="row-label">Result</div>
-  <div class="dice-values" id="diceValues"></div>
-  <div class="sum" id="diceSum"></div>
+<div class="card">
+  <button type="button" class="collapse-toggle" id="statsToggle">
+    <span>Statistics</span>
+    <span class="chev" id="statsChev">▾</span>
+  </button>
+  <div class="stats-body" id="statsBody" style="display:none;">
+    <p class="hint" id="statsSummary">No rolls yet.</p>
+    <div class="stats-bars" id="statsBars"></div>
+    <button type="button" id="statsResetBtn" class="ghost-btn">Reset statistics</button>
+  </div>
 </div>
 
 <div class="card placeholder-card">
@@ -65,13 +76,9 @@
     <span>Players</span>
     <span class="badge">coming soon</span>
   </div>
-  <div class="placeholder-row">
-    <span>Statistics</span>
-    <span class="badge">coming soon</span>
-  </div>
 </div>
 
-<footer>Gamble - Try not to Handle · v0.1.1</footer>
+<footer>Gamble - Try not to Handle · v0.2.0</footer>
 
 <script type="module" src="app.js"></script>
 </body>

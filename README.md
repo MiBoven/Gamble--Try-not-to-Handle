@@ -7,13 +7,16 @@ A physically simulated 3D dice roller that runs entirely in your browser. No fil
 ## Features
 
 - Real 3D dice, rendered with Three.js and simulated with the Cannon-es physics engine — dice actually tumble, bounce off the tray walls, collide with each other, and settle
-- Roll **1 to 5 dice at once**, each starting from a random rotation and a slightly offset position, so they land differently every time (useful later for games like Kniffel/Yahtzee)
+- The 3D tray sits at the very top of the page with the Throw button right below it, so rolling the default single die never requires scrolling
+- Roll **1 to 5 dice at once** (default: 1), each starting from a random rotation and a slightly offset position, so they land differently every time (useful later for games like Kniffel/Yahtzee)
 - **Pip mode** toggle:
   - **1–6**: standard die, each number appears once
   - **1–3 (doubled)**: each number 1–3 appears twice (physical roll shown in parentheses next to the counted value) — effectively a D3
 - Automatic face-up detection: after the dice come to rest, the app compares each die's actual 3D orientation against the die model's known geometry to read off the correct number — no manual reading needed
 - Sum of all rolled dice shown alongside the individual results
-- Placeholder sections for **Players** and **Statistics** (UI only for now — functionality comes in a later version)
+- **Statistics** (collapsible section): tracks every physical face rolled across the session (independent of pip mode), shown as a bar per number 1–6, persisted in `localStorage` so it survives reloads, with a reset button
+- Placeholder section for **Players** (UI only for now — functionality comes in a later version)
+- You're warned before an accidental reload/navigation discards unsaved statistics
 - Dark mode by default, with a light mode toggle
 - Mobile-first layout
 - 100% client-side: no backend, no analytics, nothing ever leaves the device
@@ -57,6 +60,14 @@ models/
 ```
 
 Once these are in place, the app works with zero build step — it's plain static files.
+
+## Troubleshooting: dice not loading
+
+The app now shows a specific error message on-screen if either the library files or the model fail to load (previously it failed silently and just kept showing "Loading dice model…"). If you still see that message stuck:
+
+1. Open the browser dev console (F12) and look for red errors — a `404` tells you exactly which file is missing or at the wrong path.
+2. Double-check the `vendor/` folder matches the structure above **exactly**, including the nested `three/build/` and `three/examples/jsm/loaders/` subfolders.
+3. Double-check the file is committed at exactly `models/D6.glb` — filenames are case-sensitive on Netlify's Linux servers, so `models/d6.glb` or `Models/D6.glb` will not be found.
 
 ## Files
 
@@ -102,6 +113,14 @@ Once these are in place, the app works with zero build step — it's plain stati
 Requires WebGL. Works in all modern browsers (Chrome, Safari, Firefox, Edge). Physics performance on very old mobile devices may be reduced with 5 dice at once; reduce dice count if the frame rate feels low.
 
 ## Changelog
+
+### 0.2.0
+- Default number of dice is now **1** instead of 2
+- 3D tray + Throw button moved to the very top of the page — rolling the default die never requires scrolling
+- **Statistics** is now a real, working feature (not a placeholder): collapsible section tracking the physical face distribution across all rolls, persisted in `localStorage`, with a reset button
+- Added a warning before an accidental reload/navigation, active once at least one roll has happened
+- Fixed silent failure when `vendor/` files are missing or misplaced — Three.js/Cannon-es are now loaded via dynamic `import()` with a try/catch, so a missing file now shows a clear on-screen error instead of an endless "Loading dice model…"
+- Clearer error message if `models/D6.glb` fails to load (path/case-sensitivity hint)
 
 ### 0.1.1
 - Renamed the app to "Gamble - Try not to Handle"

@@ -109,4 +109,26 @@ button.icon {
   padding: 3px 8px; border-radius: 20px;
 }
 
+.collapse-toggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  background: none; border: none; color: var(--text); font-size: 14px; font-weight: 600;
+  padding: 0; cursor: pointer;
+}
+.chev { color: var(--text-secondary); transition: transform .15s; }
+.chev.open { transform: rotate(180deg); }
+.stats-body { margin-top: 12px; }
+.stats-bars { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.stat-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.stat-row .stat-label { width: 14px; flex-shrink: 0; font-weight: 700; }
+.stat-row .stat-track {
+  flex: 1; height: 10px; background: var(--surface-2); border-radius: 6px; overflow: hidden;
+}
+.stat-row .stat-fill { height: 100%; background: var(--accent); border-radius: 6px; }
+.stat-row .stat-count { width: 34px; flex-shrink: 0; text-align: right; color: var(--text-secondary); }
+.ghost-btn {
+  width: 100%; background: none; border: 1px solid var(--border); color: var(--text-secondary);
+  padding: 9px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.ghost-btn:active { opacity: .7; }
+
 footer { text-align: center; color: var(--text-secondary); font-size: 12px; margin-top: 24px; }
