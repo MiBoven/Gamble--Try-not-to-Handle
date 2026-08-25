@@ -8,13 +8,18 @@ A physically simulated 3D dice roller that runs entirely in your browser. No fil
 
 - Real 3D dice, rendered with Three.js and simulated with the Cannon-es physics engine — dice actually tumble, bounce off the tray walls, collide with each other, and settle
 - The 3D tray sits at the very top of the page with the Throw button right below it, so rolling the default single die never requires scrolling
-- Roll **1 to 5 dice at once** (default: 1), each starting from a random rotation and a slightly offset position, so they land differently every time (useful later for games like Kniffel/Yahtzee)
+- Roll **1 to 5 dice at once** (default: 1) — the dice count control sits directly under the Throw button
+- Dice spawn on a spaced grid (never inside one another), and if one somehow flies off the tray it's automatically re-rolled with a short on-screen notice instead of getting lost
+- **Roll speed**: Slow / Normal / Fast — changes both the throw strength and how fast the simulation plays out
+- **Instant roll**: an option to skip the physics animation entirely and get a result immediately (still fair, still shown on the die visually)
+- **Camera moves over the dice after the roll**: on by default, animates the camera to a top-down view centered on the dice once they settle — this runs independently of the roll finishing, so it never delays being able to throw again
+- **Cancel a throw**: while dice are rolling, the Throw button turns into an "Abort" button; tapping it pauses the roll and asks for confirmation before resetting
 - **Pip mode** toggle:
   - **1–6**: standard die, each number appears once
   - **1–3 (doubled)**: each number 1–3 appears twice (physical roll shown in parentheses next to the counted value) — effectively a D3
 - Automatic face-up detection: after the dice come to rest, the app compares each die's actual 3D orientation against the die model's known geometry to read off the correct number — no manual reading needed
 - Sum of all rolled dice shown alongside the individual results
-- **Statistics** (collapsible section): tracks every physical face rolled across the session (independent of pip mode), shown as a bar per number 1–6, persisted in `localStorage` so it survives reloads, with a reset button
+- **Statistics** (collapsible section): tracks every physical face rolled across the session (independent of pip mode and instant/animated mode), shown as a bar per number 1–6, persisted in `localStorage` so it survives reloads, with a reset button
 - Placeholder section for **Players** (UI only for now — functionality comes in a later version)
 - You're warned before an accidental reload/navigation discards unsaved statistics
 - Dark mode by default, with a light mode toggle
@@ -112,16 +117,27 @@ The app shows a specific error message on-screen if either the library files or 
 
 ## Roadmap
 
+- "Epic" camera mode: instead of only moving the camera after the dice settle, slow the dice down during their final tumble and have the camera swoop in and orbit above them as they finish
 - More die types: D4, D10 (1–10 / 0–9 / 1–5 doubled), D12, D20, D50, D100
 - Coin flip (heads/tails, 0/1 binary)
 - Named players, each able to submit their own roll
-- Statistics view (roll history, distributions)
+- Richer statistics (roll history over time, per-player breakdown once players exist)
 
 ## Browser support
 
 Requires WebGL. Works in all modern browsers (Chrome, Safari, Firefox, Edge). Physics performance on very old mobile devices may be reduced with 5 dice at once; reduce dice count if the frame rate feels low.
 
 ## Changelog
+
+### 0.3.0
+- "Number of dice" control moved directly below the Throw button
+- Added **roll speed** option (Slow / Normal / Fast)
+- Dice now spawn on a spaced grid so they never overlap on launch
+- Dice that fly off the tray are automatically re-rolled with an on-screen notice, instead of being lost
+- Added a **camera animation** option (on by default) that moves the camera above the dice after they settle, without delaying the next throw
+- Added an **instant roll** option that skips the physics animation entirely
+- Added the ability to **cancel a throw**: the Throw button becomes "Abort" while rolling, pauses the simulation, and asks for confirmation before resetting
+- Roadmap note added for a future "epic" camera mode (slow-motion final tumble + orbiting camera)
 
 ### 0.2.1
 - Fixed dice not loading: `vendor/` now uses a **flat** structure (matching what actually gets uploaded), with an import map in `index.html` so `GLTFLoader.js`'s `from 'three'` import resolves correctly

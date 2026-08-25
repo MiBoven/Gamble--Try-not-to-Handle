@@ -1,26 +1,8 @@
 // Gamble - Try not to Handle
 // 3D physically simulated dice. Three.js for rendering, Cannon-es for physics.
 //
-// SETUP REQUIRED: this app imports Three.js and Cannon-es as local, vendored
-// ES modules (no CDN calls at runtime), all flat inside ./vendor/:
-//
-//   vendor/three.module.js        <- https://unpkg.com/three@0.160.0/build/three.module.js
-//   vendor/GLTFLoader.js          <- https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js
-//                                     (patched: imports './BufferGeometryUtils.js' instead of '../utils/...')
-//   vendor/BufferGeometryUtils.js <- included in this repo (small shim, see file)
-//   vendor/cannon-es.js           <- https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js
-//
-// GLTFLoader.js imports Three.js via the bare specifier `from 'three'`
-// (not a relative path), which requires the <script type="importmap"> block
-// in index.html mapping "three" -> "./vendor/three.module.js".
-//
-// The die model lives in ./models/D6.glb — see README for details.
-//
-// NOTE: the three imports below are dynamic (not static `import` statements)
-// on purpose. A static import of a missing/misplaced vendor file fails
-// silently at parse time (nothing runs, no error shown). Dynamic import lets
-// us catch that failure and show a clear message instead of an endless
-// "Loading dice model…" with no explanation.
+// SETUP: see README.md for the vendor/ file layout and import map requirement.
+// The die model lives in ./models/D6.glb.
 
 // ---------- Theme (works even if Three.js/Cannon-es fail to load) ----------
 const root = document.documentElement;
@@ -43,11 +25,22 @@ const WALL_HEIGHT = 1.4;
 const SETTLE_LIN_THRESHOLD = 0.05;
 const SETTLE_ANG_THRESHOLD = 0.05;
 const SETTLE_FRAMES_REQUIRED = 40;
+const GRID_SPACING = 1.3;      // >1 die-width apart, guarantees no overlap
+const OUT_OF_BOUNDS_XZ = TRAY_SIZE / 2 + 1.5;
+const OUT_OF_BOUNDS_Y = -3;
+
+const SPEED_PRESETS = {
+  slow: { timeScale: 0.55, impulseMul: 0.7 },
+  normal: { timeScale: 1.0, impulseMul: 1.0 },
+  fast: { timeScale: 1.8, impulseMul: 1.4 },
+};
 
 // ---------- State ----------
 let pipMode = 6;      // 6 = standard 1-6, 3 = doubled 1-3
 let diceCount = 1;
+let speedKey = 'normal';
 let rolling = false;
+let paused = false;
 let settleStreak = 0;
 let lastPhysicalValues = [];
 
@@ -56,8 +49,12 @@ const dieTypeToggle = document.getElementById('dieTypeToggle');
 const pipModeToggle = document.getElementById('pipModeToggle');
 const pipModeHint = document.getElementById('pipModeHint');
 const diceCountStepper = document.getElementById('diceCountStepper');
+const speedToggle = document.getElementById('speedToggle');
+const instantThrowToggle = document.getElementById('instantThrowToggle');
+const cameraAnimToggle = document.getElementById('cameraAnimToggle');
 const throwBtn = document.getElementById('throwBtn');
 const loadingMsg = document.getElementById('loadingMsg');
+const hintBanner = document.getElementById('hintBanner');
 const resultCard = document.getElementById('resultCard');
 const diceValuesEl = document.getElementById('diceValues');
 const diceSumEl = document.getElementById('diceSum');
@@ -69,6 +66,18 @@ const statsBody = document.getElementById('statsBody');
 const statsSummary = document.getElementById('statsSummary');
 const statsBars = document.getElementById('statsBars');
 const statsResetBtn = document.getElementById('statsResetBtn');
+
+let hintTimer = null;
+function showHint(text, duration = 3000) {
+  hintBanner.textContent = text;
+  hintBanner.style.display = 'block';
+  hintBanner.style.opacity = '1';
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => {
+    hintBanner.style.opacity = '0';
+    setTimeout(() => { hintBanner.style.display = 'none'; }, 250);
+  }, duration);
+}
 
 dieTypeToggle.addEventListener('click', () => {
   // Only D6 exists for now; kept as a no-op hook for future die types.
@@ -95,6 +104,14 @@ diceCountStepper.addEventListener('click', (e) => {
   if (window.gambleSetDiceCount) window.gambleSetDiceCount(diceCount);
   resultCard.style.display = 'none';
   lastPhysicalValues = [];
+});
+
+speedToggle.addEventListener('click', (e) => {
+  const btn = e.target.closest('.seg-btn');
+  if (!btn || rolling) return;
+  speedToggle.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  speedKey = btn.dataset.speed;
 });
 
 // ---------- Statistics (persisted in localStorage, independent of 3D load) ----------
@@ -161,6 +178,15 @@ window.addEventListener('beforeunload', (e) => {
   }
 });
 
+// ---------- Shared grid layout (guarantees dice never spawn overlapping) ----------
+function gridSlot(index, total) {
+  const cols = Math.ceil(Math.sqrt(total));
+  const offset = (cols - 1) / 2;
+  const row = Math.floor(index / cols);
+  const col = index % cols;
+  return { x: (col - offset) * GRID_SPACING, z: (row - offset) * GRID_SPACING };
+}
+
 // ---------- 3D boot (Three.js + Cannon-es), loaded dynamically ----------
 async function boot() {
   let THREE, GLTFLoader, CANNON;
@@ -189,14 +215,40 @@ async function boot() {
     { axis: new THREE.Vector3(0, 0, 1), value: 6 },
     { axis: new THREE.Vector3(0, 0, -1), value: 1 },
   ];
+  const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
   // ---------- Three.js setup ----------
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x184a30);
 
+  const DEFAULT_CAM_POS = new THREE.Vector3(0, 7.2, 6.4);
+  const DEFAULT_LOOK = new THREE.Vector3(0, 0, 0);
   const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
-  camera.position.set(0, 7.2, 6.4);
-  camera.lookAt(0, 0, 0);
+  camera.position.copy(DEFAULT_CAM_POS);
+  let lookTarget = DEFAULT_LOOK.clone();
+  camera.lookAt(lookTarget);
+
+  // Simple camera tween: { fromPos, toPos, fromLook, toLook, start, duration }
+  let camAnim = null;
+  function animateCameraTo(toPos, toLook, duration) {
+    camAnim = {
+      fromPos: camera.position.clone(),
+      toPos: toPos.clone(),
+      fromLook: lookTarget.clone(),
+      toLook: toLook.clone(),
+      start: performance.now(),
+      duration,
+    };
+  }
+  function updateCameraAnim() {
+    if (!camAnim) return;
+    const t = Math.min(1, (performance.now() - camAnim.start) / camAnim.duration);
+    const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // easeInOutQuad
+    camera.position.lerpVectors(camAnim.fromPos, camAnim.toPos, eased);
+    lookTarget.lerpVectors(camAnim.fromLook, camAnim.toLook, eased);
+    camera.lookAt(lookTarget);
+    if (t >= 1) camAnim = null;
+  }
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.shadowMap.enabled = true;
@@ -295,9 +347,9 @@ async function boot() {
     return { mesh, body, inScene: false };
   }
 
-  function placeIdle(die, index) {
-    const x = (index - (MAX_DICE - 1) / 2) * 0.9;
-    die.body.position.set(x, DIE_HALF + 0.02, 0.5);
+  function placeIdle(die, index, total) {
+    const slot = gridSlot(index, total || MAX_DICE);
+    die.body.position.set(slot.x, DIE_HALF + 0.02, slot.z);
     die.body.velocity.set(0, 0, 0);
     die.body.angularVelocity.set(0, 0, 0);
     const q = new CANNON.Quaternion();
@@ -315,7 +367,7 @@ async function boot() {
         scene.add(die.mesh);
         world.addBody(die.body);
         die.inScene = true;
-        placeIdle(die, i);
+        placeIdle(die, i, n);
       } else if (!shouldShow && die.inScene) {
         scene.remove(die.mesh);
         world.removeBody(die.body);
@@ -324,6 +376,41 @@ async function boot() {
     }
   }
   window.gambleSetDiceCount = setDiceCount;
+
+  // Launches (or re-launches, for out-of-bounds recovery) a single die.
+  function launchDie(die, index, total) {
+    const preset = SPEED_PRESETS[speedKey];
+    const slot = gridSlot(index, total);
+    die.body.wakeUp();
+    die.body.position.set(
+      slot.x + (Math.random() - 0.5) * 0.2,
+      2.0 + index * 0.3 + Math.random() * 0.3,
+      slot.z + (Math.random() - 0.5) * 0.2
+    );
+    const q = new CANNON.Quaternion();
+    q.setFromEuler(Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, Math.random() * Math.PI * 2);
+    die.body.quaternion.copy(q);
+    die.body.velocity.set(
+      (Math.random() - 0.5) * 2.5 * preset.impulseMul,
+      -2 * preset.impulseMul,
+      (Math.random() - 0.5) * 2.5 * preset.impulseMul
+    );
+    die.body.angularVelocity.set(
+      (Math.random() - 0.5) * 18 * preset.impulseMul,
+      (Math.random() - 0.5) * 18 * preset.impulseMul,
+      (Math.random() - 0.5) * 18 * preset.impulseMul
+    );
+  }
+
+  // Builds a quaternion that shows `value` face-up, with a random spin
+  // around the vertical axis so repeated instant rolls don't look identical.
+  function quaternionForValue(value) {
+    const entry = FACE_MAP.find((f) => f.value === value);
+    const localAxis = entry.axis.clone().normalize();
+    const align = new THREE.Quaternion().setFromUnitVectors(localAxis, WORLD_UP);
+    const spin = new THREE.Quaternion().setFromAxisAngle(WORLD_UP, Math.random() * Math.PI * 2);
+    return spin.multiply(align);
+  }
 
   // ---------- Load model ----------
   const loader = new GLTFLoader();
@@ -347,32 +434,6 @@ async function boot() {
   }, undefined, (err) => {
     console.error(err);
     loadingMsg.textContent = 'Failed to load models/D6.glb — check that the file is committed at exactly that path (case-sensitive) and reload.';
-  });
-
-  // ---------- Throw ----------
-  throwBtn.addEventListener('click', () => {
-    if (rolling) return;
-    rolling = true;
-    settleStreak = 0;
-    throwBtn.disabled = true;
-    resultCard.style.display = 'none';
-
-    const activeDice = dicePool.slice(0, diceCount);
-    activeDice.forEach((die, i) => {
-      die.body.wakeUp();
-      const scatterX = (i - (diceCount - 1) / 2) * 0.8 + (Math.random() - 0.5) * 0.4;
-      const scatterZ = (Math.random() - 0.5) * 0.6;
-      die.body.position.set(scatterX, 2.2 + Math.random() * 0.6, scatterZ);
-      const q = new CANNON.Quaternion();
-      q.setFromEuler(Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, Math.random() * Math.PI * 2);
-      die.body.quaternion.copy(q);
-      die.body.velocity.set((Math.random() - 0.5) * 2.5, -2, (Math.random() - 0.5) * 2.5);
-      die.body.angularVelocity.set(
-        (Math.random() - 0.5) * 18,
-        (Math.random() - 0.5) * 18,
-        (Math.random() - 0.5) * 18
-      );
-    });
   });
 
   // ---------- Face-up detection ----------
@@ -409,33 +470,126 @@ async function boot() {
     resultCard.style.display = 'block';
   };
 
+  function moveCameraOverDice(activeDice) {
+    if (!cameraAnimToggle.checked) return;
+    const centroid = new THREE.Vector3();
+    activeDice.forEach((die) => centroid.add(die.body.position));
+    centroid.divideScalar(activeDice.length);
+    const target = new THREE.Vector3(centroid.x, 3.4, centroid.z + 0.01);
+    const look = new THREE.Vector3(centroid.x, 0, centroid.z);
+    animateCameraTo(target, look, 1100);
+  }
+
+  function finishRoll(activeDice) {
+    rolling = false;
+    paused = false;
+    throwBtn.textContent = 'Throw';
+    throwBtn.disabled = false;
+    lastPhysicalValues = activeDice.map((die) => getTopValue(die.body.quaternion));
+    window.gambleRenderResults(lastPhysicalValues);
+    recordStats(lastPhysicalValues);
+    moveCameraOverDice(activeDice);
+  }
+
+  // ---------- Throw / Cancel / Instant roll ----------
+  function startPhysicalThrow() {
+    rolling = true;
+    paused = false;
+    settleStreak = 0;
+    throwBtn.textContent = 'Abort';
+    resultCard.style.display = 'none';
+    animateCameraTo(DEFAULT_CAM_POS, DEFAULT_LOOK, 450);
+
+    const activeDice = dicePool.slice(0, diceCount);
+    activeDice.forEach((die, i) => launchDie(die, i, diceCount));
+  }
+
+  function doInstantThrow() {
+    resultCard.style.display = 'none';
+    const activeDice = dicePool.slice(0, diceCount);
+    const values = activeDice.map(() => Math.floor(Math.random() * 6) + 1);
+    activeDice.forEach((die, i) => {
+      const slot = gridSlot(i, diceCount);
+      die.body.position.set(slot.x, DIE_HALF + 0.02, slot.z);
+      die.body.velocity.set(0, 0, 0);
+      die.body.angularVelocity.set(0, 0, 0);
+      const threeQ = quaternionForValue(values[i]);
+      die.body.quaternion.set(threeQ.x, threeQ.y, threeQ.z, threeQ.w);
+      die.body.sleep();
+    });
+    lastPhysicalValues = values;
+    window.gambleRenderResults(values);
+    recordStats(values);
+    moveCameraOverDice(activeDice);
+  }
+
+  function requestAbort() {
+    paused = true;
+    const reallyAbort = confirm('Really cancel this throw?');
+    if (reallyAbort) {
+      const activeDice = dicePool.slice(0, diceCount);
+      activeDice.forEach((die, i) => placeIdle(die, i, diceCount));
+      rolling = false;
+      paused = false;
+      settleStreak = 0;
+      throwBtn.textContent = 'Throw';
+      resultCard.style.display = 'none';
+    } else {
+      paused = false;
+    }
+  }
+
+  throwBtn.addEventListener('click', () => {
+    if (rolling) { requestAbort(); return; }
+    if (instantThrowToggle.checked) { doInstantThrow(); return; }
+    startPhysicalThrow();
+  });
+
   // ---------- Animation loop ----------
   const clock = new THREE.Clock();
   function animate() {
     requestAnimationFrame(animate);
-    const dt = Math.min(clock.getDelta(), 1 / 30);
-    world.step(1 / 60, dt, 8);
+    updateCameraAnim();
 
     const activeDice = dicePool.slice(0, diceCount);
+
+    if (!paused) {
+      const dt = Math.min(clock.getDelta(), 1 / 30) * SPEED_PRESETS[speedKey].timeScale;
+      world.step(1 / 60, dt, 8);
+
+      if (rolling) {
+        // Safety net: a die that somehow clears the tray walls gets a fresh
+        // re-roll instead of being lost, with a short on-screen notice.
+        let anyReset = false;
+        activeDice.forEach((die, i) => {
+          const p = die.body.position;
+          if (Math.abs(p.x) > OUT_OF_BOUNDS_XZ || Math.abs(p.z) > OUT_OF_BOUNDS_XZ || p.y < OUT_OF_BOUNDS_Y) {
+            launchDie(die, i, diceCount);
+            anyReset = true;
+          }
+        });
+        if (anyReset) {
+          showHint('A die flew off the tray and was reset.');
+          settleStreak = 0;
+        }
+
+        const allSlow = activeDice.every((die) =>
+          die.body.velocity.length() < SETTLE_LIN_THRESHOLD &&
+          die.body.angularVelocity.length() < SETTLE_ANG_THRESHOLD
+        );
+        settleStreak = allSlow ? settleStreak + 1 : 0;
+        if (settleStreak >= SETTLE_FRAMES_REQUIRED) {
+          finishRoll(activeDice);
+        }
+      }
+    } else {
+      clock.getDelta(); // keep the clock from jumping once resumed
+    }
+
     activeDice.forEach((die) => {
       die.mesh.position.copy(die.body.position);
       die.mesh.quaternion.copy(die.body.quaternion);
     });
-
-    if (rolling) {
-      const allSlow = activeDice.every((die) =>
-        die.body.velocity.length() < SETTLE_LIN_THRESHOLD &&
-        die.body.angularVelocity.length() < SETTLE_ANG_THRESHOLD
-      );
-      settleStreak = allSlow ? settleStreak + 1 : 0;
-      if (settleStreak >= SETTLE_FRAMES_REQUIRED) {
-        rolling = false;
-        throwBtn.disabled = false;
-        lastPhysicalValues = activeDice.map((die) => getTopValue(die.body.quaternion));
-        window.gambleRenderResults(lastPhysicalValues);
-        recordStats(lastPhysicalValues);
-      }
-    }
 
     renderer.render(scene, camera);
   }
