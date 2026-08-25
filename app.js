@@ -2,16 +2,17 @@
 // 3D physically simulated dice. Three.js for rendering, Cannon-es for physics.
 //
 // SETUP REQUIRED: this app imports Three.js and Cannon-es as local, vendored
-// ES modules (no CDN calls at runtime). Before deploying, place these files
-// under ./vendor/ preserving the exact folder structure below, since
-// three.js's own example loaders import three.module.js via a relative path:
+// ES modules (no CDN calls at runtime), all flat inside ./vendor/:
 //
-//   vendor/three/build/three.module.js
-//     <- https://unpkg.com/three@0.160.0/build/three.module.js
-//   vendor/three/examples/jsm/loaders/GLTFLoader.js
-//     <- https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js
-//   vendor/cannon-es.js
-//     <- https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js
+//   vendor/three.module.js        <- https://unpkg.com/three@0.160.0/build/three.module.js
+//   vendor/GLTFLoader.js          <- https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js
+//                                     (patched: imports './BufferGeometryUtils.js' instead of '../utils/...')
+//   vendor/BufferGeometryUtils.js <- included in this repo (small shim, see file)
+//   vendor/cannon-es.js           <- https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js
+//
+// GLTFLoader.js imports Three.js via the bare specifier `from 'three'`
+// (not a relative path), which requires the <script type="importmap"> block
+// in index.html mapping "three" -> "./vendor/three.module.js".
 //
 // The die model lives in ./models/D6.glb — see README for details.
 //
@@ -165,8 +166,8 @@ async function boot() {
   let THREE, GLTFLoader, CANNON;
   try {
     const [threeMod, loaderMod, cannonMod] = await Promise.all([
-      import('./vendor/three/build/three.module.js'),
-      import('./vendor/three/examples/jsm/loaders/GLTFLoader.js'),
+      import('./vendor/three.module.js'),
+      import('./vendor/GLTFLoader.js'),
       import('./vendor/cannon-es.js'),
     ]);
     THREE = threeMod;
@@ -174,7 +175,7 @@ async function boot() {
     CANNON = cannonMod;
   } catch (err) {
     console.error('Failed to load Three.js/Cannon-es from ./vendor/:', err);
-    loadingMsg.textContent = 'Could not load the 3D engine from ./vendor/ — check that all 3 library files are present at the exact paths listed in README.md, then reload.';
+    loadingMsg.textContent = 'Could not load the 3D engine from ./vendor/ — check that all 4 files (three.module.js, GLTFLoader.js, BufferGeometryUtils.js, cannon-es.js) are present, then reload.';
     return;
   }
 

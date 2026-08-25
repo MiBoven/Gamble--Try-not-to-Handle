@@ -38,21 +38,29 @@ All opposite faces correctly sum to 7, matching a real die. After each die's phy
 
 ## Setup required before deploying (important)
 
-To keep this app dependency-free at *runtime* (no CDN calls, fully offline-capable), Three.js and Cannon-es are imported as local ES modules rather than from a CDN. **These library files are not included** — download them once and place them in the exact folder structure below, since Three.js's own `GLTFLoader.js` imports the core library via a relative path that depends on this structure:
+To keep this app dependency-free at *runtime* (no CDN calls, fully offline-capable), Three.js and Cannon-es are imported as local ES modules rather than from a CDN. **These library files are included in this delivery, already patched and ready to use** — just keep the `vendor/` folder as-is:
 
 ```
 vendor/
-  three/
-    build/
-      three.module.js        <- https://unpkg.com/three@0.160.0/build/three.module.js
-    examples/
-      jsm/
-        loaders/
-          GLTFLoader.js       <- https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js
-  cannon-es.js                <- https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js
+  three.module.js          <- unpkg.com/three@0.160.0/build/three.module.js (unmodified)
+  GLTFLoader.js             <- unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js
+                                (one line patched — see note below)
+  BufferGeometryUtils.js    <- small local shim, written for this project (see note below)
+  cannon-es.js              <- unpkg.com/cannon-es@0.20.0/dist/cannon-es.js (unmodified)
 ```
 
-All 3D model files (dice, and any future shapes) live in their own subfolder from now on:
+Two things about this Three.js version (r160) that are easy to trip over if you ever re-download these files yourself:
+
+1. **`GLTFLoader.js` imports Three.js via the bare name `'three'`**, not a relative path (`import ... from 'three'`). Browsers only resolve bare specifiers like this via an **import map**, which is why `index.html` includes:
+   ```html
+   <script type="importmap">
+   { "imports": { "three": "./vendor/three.module.js" } }
+   </script>
+   ```
+   placed *before* the `<script type="module" src="app.js">` tag. Without it, loading fails silently.
+2. **`GLTFLoader.js` also imports `BufferGeometryUtils.js`** for one helper function (`toTrianglesDrawMode`, only used for triangle-strip/fan geometry — not needed for a standard Blender export, but imported unconditionally regardless). The stock file lives several folders away in the npm package (`examples/jsm/utils/`); since everything here is flat, `vendor/GLTFLoader.js` has been patched to import `./BufferGeometryUtils.js` instead, and a minimal local shim of that one function is included at `vendor/BufferGeometryUtils.js`.
+
+All 3D model files (dice, and any future shapes) live in their own subfolder:
 
 ```
 models/
@@ -63,19 +71,20 @@ Once these are in place, the app works with zero build step — it's plain stati
 
 ## Troubleshooting: dice not loading
 
-The app now shows a specific error message on-screen if either the library files or the model fail to load (previously it failed silently and just kept showing "Loading dice model…"). If you still see that message stuck:
+The app shows a specific error message on-screen if either the library files or the model fail to load (rather than an endless "Loading dice model…"). If you still see it stuck:
 
 1. Open the browser dev console (F12) and look for red errors — a `404` tells you exactly which file is missing or at the wrong path.
-2. Double-check the `vendor/` folder matches the structure above **exactly**, including the nested `three/build/` and `three/examples/jsm/loaders/` subfolders.
-3. Double-check the file is committed at exactly `models/D6.glb` — filenames are case-sensitive on Netlify's Linux servers, so `models/d6.glb` or `Models/D6.glb` will not be found.
+2. Confirm `vendor/` contains all 4 files listed above, flat (no subfolders).
+3. Confirm `index.html` still has the `<script type="importmap">` block before the `app.js` script tag.
+4. Confirm the model is committed at exactly `models/D6.glb` — filenames are case-sensitive on Netlify's Linux servers, so `models/d6.glb` or `Models/D6.glb` will not be found.
 
 ## Files
 
-- `index.html` — markup and UI
+- `index.html` — markup, UI, import map
 - `style.css` — all styling
 - `app.js` — Three.js scene, Cannon-es physics, dice pool, face detection
-- `models/D6.glb` — 3D die model (you provide this; see above)
-- `vendor/` — Three.js and Cannon-es (you provide these; see above)
+- `models/D6.glb` — 3D die model
+- `vendor/` — Three.js, Cannon-es, GLTFLoader.js (patched), BufferGeometryUtils.js (shim) — all included, ready to deploy as-is
 
 ## Deployment (Netlify)
 
@@ -113,6 +122,12 @@ The app now shows a specific error message on-screen if either the library files
 Requires WebGL. Works in all modern browsers (Chrome, Safari, Firefox, Edge). Physics performance on very old mobile devices may be reduced with 5 dice at once; reduce dice count if the frame rate feels low.
 
 ## Changelog
+
+### 0.2.1
+- Fixed dice not loading: `vendor/` now uses a **flat** structure (matching what actually gets uploaded), with an import map in `index.html` so `GLTFLoader.js`'s `from 'three'` import resolves correctly
+- Added `vendor/BufferGeometryUtils.js`, a small local shim for the one helper `GLTFLoader.js` needs — previously missing, which broke the module import entirely
+- `vendor/GLTFLoader.js` now ships already patched to match the flat layout (one import line changed) — no manual editing needed
+- All vendor library files are now included directly in this delivery, ready to deploy as-is
 
 ### 0.2.0
 - Default number of dice is now **1** instead of 2
