@@ -1,4 +1,4 @@
-# Gamble - What you not can Handle
+# Gamble - Try not to Handle
 
 A physically simulated 3D dice roller that runs entirely in your browser. No files are ever uploaded to a server.
 
@@ -49,10 +49,11 @@ vendor/
   cannon-es.js                <- https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js
 ```
 
-Also place the die model at the repo root:
+All 3D model files (dice, and any future shapes) live in their own subfolder from now on:
 
 ```
-D6.glb
+models/
+  D6.glb
 ```
 
 Once these are in place, the app works with zero build step — it's plain static files.
@@ -62,12 +63,12 @@ Once these are in place, the app works with zero build step — it's plain stati
 - `index.html` — markup and UI
 - `style.css` — all styling
 - `app.js` — Three.js scene, Cannon-es physics, dice pool, face detection
-- `D6.glb` — 3D die model (you provide this; see above)
+- `models/D6.glb` — 3D die model (you provide this; see above)
 - `vendor/` — Three.js and Cannon-es (you provide these; see above)
 
 ## Deployment (Netlify)
 
-1. Push this repository to GitHub, including the `vendor/` folder and `D6.glb`.
+1. Push this repository to GitHub, including the `vendor/` folder and `models/D6.glb`.
 2. In Netlify: **Add new site → Import an existing project**, and pick the repo.
 3. Build settings: none needed — this is a static site.
    - Build command: *(leave empty)*
@@ -101,6 +102,11 @@ Once these are in place, the app works with zero build step — it's plain stati
 Requires WebGL. Works in all modern browsers (Chrome, Safari, Firefox, Edge). Physics performance on very old mobile devices may be reduced with 5 dice at once; reduce dice count if the frame rate feels low.
 
 ## Changelog
+
+### 0.1.1
+- Renamed the app to "Gamble - Try not to Handle"
+- Button/accent colors now match the shared design system used across the app suite (blue accent instead of the earlier gold/green)
+- 3D model files now live in a `models/` subfolder instead of the repo root (`models/D6.glb`)
 
 ### 0.1.0
 - Initial release: D6 physics roller with Three.js + Cannon-es

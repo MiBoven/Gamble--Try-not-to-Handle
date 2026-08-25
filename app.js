@@ -233,7 +233,7 @@ function placeIdle(die, index) {
 
 // ---------- Load model ----------
 const loader = new GLTFLoader();
-loader.load('./D6.glb', (gltf) => {
+loader.load('./models/D6.glb', (gltf) => {
   let templateMesh = null;
   gltf.scene.traverse((child) => {
     if (child.isMesh && !templateMesh) templateMesh = child;
@@ -252,7 +252,7 @@ loader.load('./D6.glb', (gltf) => {
   animate();
 }, undefined, (err) => {
   console.error(err);
-  loadingMsg.textContent = 'Failed to load D6.glb — check that it sits next to index.html.';
+  loadingMsg.textContent = 'Failed to load D6.glb — check that it sits in ./models/.';
 });
 
 // ---------- Throw ----------

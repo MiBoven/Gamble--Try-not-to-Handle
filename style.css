@@ -5,20 +5,20 @@
   --text: #1a1a1a;
   --text-secondary: #5a5a58;
   --border: #dcdcda;
-  --accent: #b5902c;
-  --accent-text: #1a1a1a;
+  --accent: #3b82f6;
+  --accent-text: #ffffff;
   --danger: #d64545;
   --felt: #cfd8cf;
 }
 html[data-theme="dark"] {
-  --bg: #0f1410;
-  --surface: #171c17;
-  --surface-2: #212721;
+  --bg: #131313;
+  --surface: #1c1c1c;
+  --surface-2: #262626;
   --text: #f0f0ee;
-  --text-secondary: #9aa39a;
-  --border: #2e352e;
-  --accent: #d4af37;
-  --accent-text: #0f1410;
+  --text-secondary: #a3a39f;
+  --border: #333331;
+  --accent: #4f8cff;
+  --accent-text: #0a0a0a;
   --danger: #ff6b6b;
   --felt: #1f4d33;
 }
